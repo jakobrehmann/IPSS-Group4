@@ -203,16 +203,16 @@ end
 
 
 # static plot:
-figure, _ = abmplot(model; ac = person_color, am = :circle, as = 10)
+figure, _ = abmplot(model; ac = person_color, am = person_shape, as = 10)
 figure
 
 # interactive plot: 
 model = initialize()
-figs, abmobs = abmexploration(model; agent_step!, ac = person_color, am = :circle, as = 25)
+figs, abmobs = abmexploration(model; agent_step!, ac = person_color, am = person_shape, as = 25)
 figs
 
 # video
-abmvideo("ourmodel.mp4", model, agent_step!; ac = person_color, am = :rect, as = 25, frames = 200, framerate = 30)
+abmvideo("ourmodel.mp4", model, agent_step!; ac = person_color, am = person_shape, as = 25, frames = 200, framerate = 30)
 
 
 # DEPRECATED 
