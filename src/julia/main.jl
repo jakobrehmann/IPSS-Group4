@@ -1,13 +1,14 @@
 # Import neccessary packages
 using Pkg
 Pkg.activate(".")
-using Agents, Random, Graphs,  Plots, Makie, CairoMakie, GraphMakie, GraphIO, Colors
-# Base.retry_load_extensions() # TODO: why do we need this?
+using Agents, Random, Graphs, Plots, Makie, CairoMakie, GraphMakie, GraphIO, Colors, GLMakie, DataFrames
+# pkg> add https://github.com/asgolovin/Agents.jl
 
 #TODO: @jakob: 
 # How to create a visualization? 
-# either use ffmpeg to make video
-# or create csvs and 
+# Option 1) using anastasia's packages
+# Option 2) create static images of each state using Graph.gl, and put together as gif/video (using ffmpeg)
+# Option 3) export each iteration as csv, and import to gephi
 
 # Define Agent
 @agent Person_Sim GraphAgent begin
@@ -17,6 +18,11 @@ using Agents, Random, Graphs,  Plots, Makie, CairoMakie, GraphMakie, GraphIO, Co
     group::Int # 0:avg; 1: low-contact (fearful); 2: high-contact (crazy)
     group_reduction_factor::Float64 #Factor describing by how much contacts are reduced
 end
+
+# susceptible(p::Person_Sim) = p.health_status == 0
+# exposed(p::Person_Sim) = p.health_status == 1
+# infectious(p::Person_Sim) = p.health_status == 2
+# recovered(p::Person_Sim) = p.health_status == 3
 
 # creates ABM with default values (can be overwritten)
 function initialize(;
@@ -187,32 +193,69 @@ plot_lines/n_nodes * 100,
 
  savefig("seir_plot.png") 
 
-# savegraph("example.graphml", net, GraphIO.GraphML.GraphMLFormat())
-
-# GraphIO.write
-# model = initialize(;n_nodes = 1000, n_edges = 1255, n_infected_agents = 100)
-# print_details(model)
-# step!(model, agent_step!)
-# print_details(model)
 
 
-# ####### VIZ
+######## VIZ
+
+model = initialize()
+
+
+function person_color(p)
+   
+    person = collect(p)[1]
+    if person.health_status == 0
+        return :blue
+    elseif person.health_status == 1
+       return :orange 
+    elseif person.health_status == 2
+       return :red 
+    else
+       return :black 
+   end
+end
+
+function person_shape(p)
+    person = collect(p)[1]
+    if person.group == 0
+        return :rect 
+    elseif person.group == 1 
+        return :triangle 
+    elseif person.group == 2
+        return :circle
+    else
+        return
+    end
+end
+
+
+# static plot:
+figure, _ = abmplot(model; ac = person_color, am = person_shape, as = 10)
+figure
+
+# interactive plot: 
+model = initialize()
+figs, abmobs = abmexploration(model; agent_step!, ac = person_color, am = person_shape, as = 25)
+figs
+
+# video
+abmvideo("ourmodel.mp4", model, agent_step!; ac = person_color, am = person_shape, as = 25, frames = 200, framerate = 30)
+
+
+# DEPRECATED 
 
 # graphplotkwargs = (
-#     # layout = Shell(), # node positions
+    # layout = Shell(), # node positions
 #     arrow_show = false, # hide directions of graph edges
 #     edge_color = :blue, # change edge colors and widths with own functions
 #     edge_width = 3,
 #     edge_plottype = :linesegments # needed for tapered edge widths
 # )
 
-# # fig, ax, abmobs = abmplot(model;
-# #     agent_step! = agent_step!,
-# #     as = 5, ac = :red, graphplotkwargs)
 
+# ids = []
+# disease_status = []
 
-# # figure, _ = abmplot(model; ac = groupcolor, am = groupmarker, as = 10)
-# figure, _ = GraphMakie.graphplot(model; ac = :blue, as = 25, am = :square)
-# figure # returning the figure displays it
-
-
+# for agent in allagents(model)
+#     push!(ids, agent.id)
+#     push!(disease_status, agent.health_status)
+# end
