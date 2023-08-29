@@ -1,7 +1,9 @@
 [deps]
 Agents = "46ada45e-f475-11e8-01d0-f70cc89e6671"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 EzXML = "8f5d6c58-4d21-5cfd-889c-e3ad7ee6a615"
+GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
 GraphIO = "aa1b3936-2fda-51b9-ab35-c553d3a640a2"
 GraphMakie = "1ecd5474-83a3-4783-bb4f-06765db800d2"
 GraphRecipes = "bd48cda9-67a9-57be-86fa-5b3c104eda73"
