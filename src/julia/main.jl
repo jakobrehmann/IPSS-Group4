@@ -11,8 +11,8 @@ using Agents, Random, Graphs, Plots, Makie, CairoMakie, GraphMakie, GraphIO, Col
 
 
 #TODO:
-    # Include random seed for randomized placement of infected agents so that the position on the graph stays the same 
-    # Should the days_infected be a constant five or have a distribution> 
+# Include random seed for randomized placement of infected agents so that the position on the graph stays the same 
+# Should the days_infected be a constant five or have a distribution> 
 
 # Define Agent
 @agent Person_Sim GraphAgent begin
@@ -161,7 +161,7 @@ function runModel(model, iterations)
 end
 
 function runModelWithPlot(model, iterations)
-    cum_susc_01 = []
+    cum_susc_1 = []
     cum_susc_2 = []
     cum_exposed = []
     cum_infectious = []
@@ -169,7 +169,7 @@ function runModelWithPlot(model, iterations)
 
     for i in 1:iterations
         cnt_susc_01,cnt_susc_2,cnt_exposed,cnt_infectious,cnt_recovered = print_details(model)
-        push!(cum_susc_01,cnt_susc_01)
+        push!(cum_susc_1,cnt_susc_01)
         push!(cum_susc_2,cnt_susc_2)
         push!(cum_exposed,cnt_exposed)
         push!(cum_infectious,cnt_infectious)
@@ -179,14 +179,14 @@ function runModelWithPlot(model, iterations)
 
 
     plot_labels = ["S" "E" "I" "R"]
-    plot_lines = [cum_susc_01 cum_exposed cum_infectious cum_recovered]
+    plot_lines = [cum_susc_1 cum_exposed cum_infectious cum_recovered]
     plot_linecolor = [:blue :orange :red :black]
 
     plot_labels = ["S_fearful" "S_crazy" "E" "I" "R"]
-    plot_lines = [cum_susc_01 cum_susc_2 cum_exposed cum_infectious cum_recovered]
+    plot_lines = [cum_susc_1 cum_susc_2 cum_exposed cum_infectious cum_recovered]
     plot_linecolor = [:blue :lightblue :orange :red :black]
 
-    Plots.plot(1:num_days,
+    Plots.plot(1:iterations,
     plot_lines/n_nodes * 100,
     labels = plot_labels, 
     linewidth=3,
@@ -204,18 +204,37 @@ end
 # increasing # edges
 # increasing # nodes
 
-n_nodes = 100000
-n_edges = 150000
-n_infected_agents = 10000
+n_nodes = 100
+n_edges = 150
+n_infected_agents = 10
 base_susceptibility = 0.5
 @time begin
     model = initialize(;n_nodes = n_nodes, n_edges = n_edges, n_infected_agents = n_infected_agents, base_susceptibility = base_susceptibility, hom_het = "heterogenous")
     runModel(model, 30)
 end
+
+
+# RUN MULTIPLE times
+@time begin
+    for i in 1:5
+        model = initialize(;seed = i, n_nodes = n_nodes, n_edges = n_edges, n_infected_agents = n_infected_agents, base_susceptibility = 0.1, hom_het = "heterogenous")
+        fig = runModelWithPlot(model, 30)
+        savefig(fig, "seir_plot$(i).png") 
+    end
+end
   
 
-createPlot(model)
-savefig("seir_plot.png") 
+
+model = initialize(;seed = 6132409871023984, n_nodes = n_nodes, n_edges = n_edges, n_infected_agents = n_infected_agents, base_susceptibility = 0.1, hom_het = "heterogenous")
+fig1 = runModelWithPlot(model, 30)
+savefig(fig1, "seir_plot$(1).png") 
+
+model = initialize(;seed = 9982374982734, n_nodes = n_nodes, n_edges = n_edges, n_infected_agents = n_infected_agents, base_susceptibility = 0.1, hom_het = "heterogenous")
+fig2 = runModelWithPlot(model, 30)
+savefig(fig2, "seir_plot$(2).png") 
+
+# createPlot(model)
+# savefig("seir_plot.png") 
 
 
  ######## VIZ
