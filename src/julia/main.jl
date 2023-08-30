@@ -36,7 +36,7 @@ function initialize(;
     n_edges = 200,
     n_infected_agents = 10,
     seed = 1234,
-    hom_het = "homogenous",
+    hom_het = "homogenous"
 )
 
     # Environment
@@ -220,12 +220,12 @@ end
 
 function person_shape(p)
     person = collect(p)[1]
-    if person.group == 0
+    if person.group == 0 # avg;
         return :rect 
-    elseif person.group == 1 
-        return :triangle 
-    elseif person.group == 2
-        return :circle
+    elseif person.group == 1 # low-contact (fearful)
+        return :xcross 
+    elseif person.group == 2 # high-contact (crazy)
+        return :star5
     else
         return
     end
