@@ -11,8 +11,8 @@ using Agents, Random, Graphs, Plots, Makie, CairoMakie, GraphMakie, GraphIO, Col
 
 
 #TODO:
-# Include random seed for randomized placement of infected agents so that the position on the graph stays the same 
-# Should the days_infected be a constant five or have a distribution> 
+    # Include random seed for randomized placement of infected agents so that the position on the graph stays the same 
+    # Should the days_infected be a constant five or have a distribution> 
 
 # Define Agent
 @agent Person_Sim GraphAgent begin
@@ -71,12 +71,12 @@ function initialize(;
     elseif hom_het == "heterogenous"
         #First: Do the fearful people, second to last argument: 1 → fearful
         for i in 1:(n_nodes)/2
-            p = Person_Sim(i,1,base_susceptibility,0,0,1,0.0001) 
+            p = Person_Sim(i,1,base_susceptibility,0,0,1,0.5) 
             add_agent_single!(p,model)
         end
         #Now: To the crazy people, second to last argument : 2 → crazy
         for i in ((n_nodes)/2+1):(n_nodes)
-            p = Person_Sim(i,1,base_susceptibility,0,0,2,0.95) 
+            p = Person_Sim(i,1,base_susceptibility,0,0,2,1.5) 
             add_agent_single!(p,model)
         end
     end
@@ -154,54 +154,71 @@ function print_details(model)
     return cnt_susc_01, cnt_susc_2, cnt_exposed,cnt_infectious,cnt_recovered
 end
 
+function runModel(model, iterations)
+    for i in 1:iterations
+        step!(model, agent_step!)
+    end
+end
 
-n_nodes = 1000
-n_infected_agents = 100
-model = initialize(;n_nodes = n_nodes, n_edges = 1255, n_infected_agents = n_infected_agents, hom_het = "heterogenous")
-cum_susc_01 = []
-cum_susc_2 = []
-cum_exposed = []
-cum_infectious = []
-cum_recovered = []
+function runModelWithPlot(model, iterations)
+    cum_susc_01 = []
+    cum_susc_2 = []
+    cum_exposed = []
+    cum_infectious = []
+    cum_recovered = []
 
-num_days = 30
-for i in 1:num_days
-    cnt_susc_01,cnt_susc_2,cnt_exposed,cnt_infectious,cnt_recovered = print_details(model)
-    push!(cum_susc_01,cnt_susc_01)
-    push!(cum_susc_2,cnt_susc_2)
-    push!(cum_exposed,cnt_exposed)
-    push!(cum_infectious,cnt_infectious)
-    push!(cum_recovered,cnt_recovered)
-    step!(model, agent_step!)
+    for i in 1:iterations
+        cnt_susc_01,cnt_susc_2,cnt_exposed,cnt_infectious,cnt_recovered = print_details(model)
+        push!(cum_susc_01,cnt_susc_01)
+        push!(cum_susc_2,cnt_susc_2)
+        push!(cum_exposed,cnt_exposed)
+        push!(cum_infectious,cnt_infectious)
+        push!(cum_recovered,cnt_recovered)
+        step!(model, agent_step!)
+    end
+
+
+    plot_labels = ["S" "E" "I" "R"]
+    plot_lines = [cum_susc_01 cum_exposed cum_infectious cum_recovered]
+    plot_linecolor = [:blue :orange :red :black]
+
+    plot_labels = ["S_fearful" "S_crazy" "E" "I" "R"]
+    plot_lines = [cum_susc_01 cum_susc_2 cum_exposed cum_infectious cum_recovered]
+    plot_linecolor = [:blue :lightblue :orange :red :black]
+
+    Plots.plot(1:num_days,
+    plot_lines/n_nodes * 100,
+    labels = plot_labels, 
+    linewidth=3,
+    linecolor = plot_linecolor,
+    xlabel = "time [t]", 
+    ylabel = "proportion of population [%]",
+    guidefontsize = 17,
+    tickfontsize = 17,
+    legendfontsize = 17,
+    legend=:outertopright)
 end
 
 
-plot_labels = ["S" "E" "I" "R"]
-plot_lines = [cum_susc_01 cum_exposed cum_infectious cum_recovered]
-plot_linecolor = [:blue :orange :red :black]
+# increasing susceptibility
+# increasing # edges
+# increasing # nodes
 
-plot_labels = ["S_fearful" "S_crazy" "E" "I" "R"]
-plot_lines = [cum_susc_01 cum_susc_2 cum_exposed cum_infectious cum_recovered]
-plot_linecolor = [:blue :lightblue :orange :red :black]
+n_nodes = 100000
+n_edges = 150000
+n_infected_agents = 10000
+base_susceptibility = 0.5
+@time begin
+    model = initialize(;n_nodes = n_nodes, n_edges = n_edges, n_infected_agents = n_infected_agents, base_susceptibility = base_susceptibility, hom_het = "heterogenous")
+    runModel(model, 30)
+end
+  
 
-Plots.plot(1:num_days,
-plot_lines/n_nodes * 100,
- labels = plot_labels, 
- linewidth=3,
- linecolor = plot_linecolor,
- xlabel = "time [t]", 
- ylabel = "proportion of population [%]",
- guidefontsize = 17,
- tickfontsize = 17,
- legendfontsize = 17)
-
- savefig("seir_plot.png") 
+createPlot(model)
+savefig("seir_plot.png") 
 
 
-
-######## VIZ
-
-model = initialize()
+ ######## VIZ
 
 
 function person_color(p)
@@ -248,7 +265,6 @@ abmvideo("ourmodel.mp4", model, agent_step!; ac = person_color, am = person_shap
 
 
 # DEPRECATED 
-
 # graphplotkwargs = (
     # layout = Shell(), # node positions
 #     arrow_show = false, # hide directions of graph edges
