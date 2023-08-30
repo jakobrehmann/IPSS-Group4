@@ -4,11 +4,15 @@ Pkg.activate(".")
 using Agents, Random, Graphs, Plots, Makie, CairoMakie, GraphMakie, GraphIO, GLMakie, DataFrames
 # pkg> add https://github.com/asgolovin/Agents.jl
 
-#TODO: @jakob: 
 # How to create a visualization? 
 # Option 1) using anastasia's packages
 # Option 2) create static images of each state using Graph.gl, and put together as gif/video (using ffmpeg)
 # Option 3) export each iteration as csv, and import to gephi
+
+
+#TODO:
+# Include random seed for randomized placement of infected agents so that the position on the graph stays the same 
+# Should the days_infected be a constant five or have a distribution> 
 
 # Define Agent
 @agent Person_Sim GraphAgent begin
@@ -18,10 +22,10 @@ using Agents, Random, Graphs, Plots, Makie, CairoMakie, GraphMakie, GraphIO, GLM
     group::Int # 0:avg; 1: low-contact; 2: high-contact
 end
 
-# susceptible(p::Person_Sim) = p.health_status == 0
-# exposed(p::Person_Sim) = p.health_status == 1
-# infectious(p::Person_Sim) = p.health_status == 2
-# recovered(p::Person_Sim) = p.health_status == 3
+susceptible(p::Person_Sim) = p.health_status == 0
+exposed(p::Person_Sim) = p.health_status == 1
+infectious(p::Person_Sim) = p.health_status == 2
+recovered(p::Person_Sim) = p.health_status == 3
 
 # creates ABM with default values (can be overwritten)
 function initialize(;
@@ -201,14 +205,16 @@ function person_shape(p)
     end
 end
 
+adata = [(susceptible, count), (exposed, count), (infectious, count), (recovered, count)]
+
 
 # static plot:
 figure, _ = abmplot(model; ac = person_color, am = person_shape, as = 10)
 figure
 
 # interactive plot: 
-model = initialize()
-figs, abmobs = abmexploration(model; agent_step!, ac = person_color, am = person_shape, as = 25)
+model = initialize(;hom_het = "heterogenous")
+figs, abmobs = abmexploration(model; agent_step!, ac = person_color, am = person_shape, as = 25, adata)
 figs
 
 # video
