@@ -22,6 +22,7 @@ function initialize(;
     n_infected_agents = 10,
     seed = 1234,
     hom_het = "homogenous",
+    assortative = "fearful",
     frac_fearful = 0.5,
     network_structure = "random" #Options: "random", "smallworld"
 )
@@ -30,7 +31,7 @@ function initialize(;
     if network_structure == "random"
         net = erdos_renyi(n_nodes,n_edges)    # input : nodes, edges # small world? watson # TODO: how to implement alternative network structure?
     elseif network_structure == "smallworld"
-        net = newman_watts_strogatz(n_nodes, k, β) #expected degree k(1 + β) #TODO: This is very much work in progress → No decision on k, β has been made
+        net = newman_watts_strogatz(n_nodes, 4, 0) #expected degree k(1 + β) #TODO: This is very much work in progress → No decision on k, β has been made
     end
 
 
@@ -72,6 +73,39 @@ function initialize(;
             p = Person_Sim(i,1,base_susceptibility,0,0,2,1.5) 
             add_agent_single!(p,model)
         end
+    elseif hom_het == "heterogenous_assortative"
+        if assortative == "fearful"
+            original_group = 2
+            new_group = 1
+        elseif assortative == "crazy"
+            original_group = 2
+            new_group = 1
+        end
+
+        for i in 1:n_nodes
+            p = Person_Sim(i,1,base_susceptibility,0,0,original_group,0.5) # TODO: what does position of 1 mean? # Syd: I believe this means that the agent is placed on the node with id 1
+            add_agent_single!(p,model) 
+        end
+
+            agents_p = random_agent(model)
+            agents_p.group = new_group
+            agents_p = agents_p.id
+            all_neighbors = []
+            no_remaining = n_nodes/2
+
+            while no_remaining > 0
+                for agent in agents_p
+                    for neighbor in nearby_agents(getindex(model, agent), model)
+                        if neighbor.group == original_group
+                            neighbor.group = new_group
+                            no_remaining -= 1
+                        end
+                        push!(all_neighbors, neighbor.id)
+                    end
+                end
+                agents_p = all_neighbors
+                all_neighbors = []
+            end
     end
 
     # infect a random group of agents

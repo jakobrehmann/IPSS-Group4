@@ -34,8 +34,8 @@ seed = 5
 iterations = 30
 base_susceptibility = 0.5
 hom_het = "heterogenous"
-n_nodes = 1000
-n_edges = 1500
+n_nodes = 10
+n_edges = 15
 n_infected_agents = 100
 
 
@@ -87,16 +87,16 @@ savefig("Infections_With_Seeds.png")
 
 # model = initialize(; hom_het = "heterogenous")
 
-# adata = [(susceptible, count), (exposed, count), (infectious, count), (recovered, count)]
+#adata = [(susceptible, count), (exposed, count), (infectious, count), (recovered, count)]
 
 # # static plot:
 # figure, _ = abmplot(model; ac = person_color, am = person_shape, as = 25)
 # figure
 
 # # interactive plot: 
-# model = initialize(;hom_het = "heterogenous")
-# figs, abmobs = abmexploration(model; agent_step!, ac = person_color, am = person_shape, as = 25, adata)
-# figs
+ model = initialize(; hom_het = "heterogenous_assortative", network_structure = "smallworld")
+ figs, abmobs = abmexploration(model; agent_step!, ac = person_color, am = person_shape, as = 25)
+ figs 
 
 # # video
 # model = initialize(;seed = 55, n_nodes = 100, n_edges = 150, n_infected_agents = 10, base_susceptibility = 0.5, hom_het = "heterogenous")
