@@ -4,294 +4,103 @@ Pkg.activate(".")
 using Agents, Random, Graphs, Plots, Makie, CairoMakie, GraphMakie, GraphIO, Colors, GLMakie, DataFrames
 # pkg> add https://github.com/asgolovin/Agents.jl
 
-# How to create a visualization? 
-# Option 1) using anastasia's packages
-# Option 2) create static images of each state using Graph.gl, and put together as gif/video (using ffmpeg)
-# Option 3) export each iteration as csv, and import to gephi
+include("model.jl")
+include("model_utils.jl")
+include("viz.jl")
 
 
-#TODO:
-# Include random seed for randomized placement of infected agents so that the position on the graph stays the same 
-# Should the days_infected be a constant five or have a distribution> 
-
-# Define Agent
-@agent Person_Sim GraphAgent begin
-    susceptibility::Float64 # between 0 (no chance of infection) and 1 (100% chance)
-    health_status::Int# 0: Susceptible; 1: Exposed; 2: Infected; 3: Recovered
-    days_infected::Int # TODO: Now that we're going for a recovery rate → Do we still need this?
-    group::Int # 0:avg; 1: low-contact (fearful); 2: high-contact (crazy)
-    group_reduction_factor::Float64 #Factor describing by how much contacts are reduced
-end
-
-susceptible(p::Person_Sim) = p.health_status == 0
-exposed(p::Person_Sim) = p.health_status == 1
-infectious(p::Person_Sim) = p.health_status == 2
-recovered(p::Person_Sim) = p.health_status == 3
-
-# creates ABM with default values (can be overwritten)
-function initialize(;
-    base_susceptibility = 0.1,
-    recovery_rate = 0.2,
-    infection_duration = 5,
-    n_nodes = 100,
-    n_edges = 200,
-    n_infected_agents = 10,
-    seed = 1234,
-    hom_het = "homogenous",
-    frac_fearful = 0.5,
-    network_structure = "random" #Options: "random", "smallworld"
-)
-
-    # Environment
-    if network_structure == "random"
-        net = erdos_renyi(n_nodes,n_edges)    # input : nodes, edges # small world? watson # TODO: how to implement alternative network structure?
-    elseif network_structure == "smallworld"
-        net = newman_watts_strogatz(n_nodes, k, β) #expected degree k(1 + β) #TODO: This is very much work in progress → No decision on k, β has been made
-    end
-
-
-    # create a space
-    space = GraphSpace(net)
-    # graphplot(net; curves = false)
-
-
-    # define model properties
-    properties = Dict(
-        :base_susceptibility => base_susceptibility,
-        :recovery_rate => recovery_rate,
-        :infection_duration => infection_duration,
-    )
-
-    # create random number generator
-    rng = Random.Xoshiro(seed)
-
-    # Model; unremovable = agents never leave the model
-    model = UnremovableABM(
-        Person_Sim, space;
-            properties, rng, scheduler = Schedulers.Randomly() # TODO: investigate what scheduler does? # @jakobrehmann: I belive you talked to Andre about this? If so, pls add a comment here
-        )
-    
-    # add agents to model
-    if hom_het == "homogenous"
-        for i in 1:n_nodes
-            p = Person_Sim(i,1,base_susceptibility,0,0,0,0.9) # TODO: what does position of 1 mean? # Syd: I believe this means that the agent is placed on the node with id 1
-            add_agent_single!(p,model) 
-        end
-    elseif hom_het == "heterogenous"
-        #First: Do the fearful people, second to last argument: 1 → fearful
-        for i in 1:(n_nodes)*frac_fearful
-            p = Person_Sim(i,1,base_susceptibility,0,0,1,0.5) 
-            add_agent_single!(p,model)
-        end
-        #Now: To the crazy people, second to last argument : 2 → crazy
-        for i in ((n_nodes)*frac_fearful+1):(n_nodes)
-            p = Person_Sim(i,1,base_susceptibility,0,0,2,1.5) 
-            add_agent_single!(p,model)
-        end
-    end
-
-    # infect a random group of agents
-    # TODO: make sure the same agent isn't infected multiple times #TODO @jakobrehmann: Pls check my work + give feedbck
-    i = 0 
-    while i < n_infected_agents
-        sick_person = random_agent(model)
-        if sick_person.health_status == 0
-          sick_person.health_status = 2
-          i +=1
-        end
-    end
-
-    return model
-end
-
-# Agent Step Function: this transitions agents from one disease state to another
-function agent_step!(person,model)
-    # if infectious
-    if person.health_status == 2 
-        if rand(model.rng) <= model.recovery_rate #Agents recover with a probability of recovery_rate
-            person.health_status = 3
-        end
-    end
-    
-    # if exposed
-    if person.health_status == 1 # if exposed
-        person.health_status = 2 # change to infectious
-    end
-
-    # if susceptible
-    if person.health_status == 0
-        # loop through every neighbor
-        for neighbor in nearby_agents(person, model)
-            # check if neighbor is infected
-            if neighbor.health_status == 2 # Infected
-                # if so, roll dice to see if susceptible agent gets infected
-                if rand(model.rng) <= (model.base_susceptibility * person.group_reduction_factor)
-                    person.health_status = 1 # change to exposed
-                end
-            end
-        end
-    end
-end
-
-# prints details of model state in each iteration
-function print_details(model)
-    cnt_susc_01 = 0
-    cnt_susc_2 = 0
-    cnt_exposed = 0
-    cnt_infectious = 0
-    cnt_recovered = 0
-    for agent in allagents(model)
-        if agent.group == 0 || agent.group == 1 #fearful people
-            if agent.health_status == 0
-                cnt_susc_01 += 1
-            end
-        else 
-            if agent.health_status == 0 #crazy people
-                cnt_susc_2 += 1
-            end
-        end
-        if agent.health_status == 1
-            cnt_exposed += 1
-        elseif agent.health_status == 2
-            cnt_infectious += 1
-        elseif agent.health_status == 3
-            cnt_recovered += 1
-        end
-    end
-    
-    println("susc group 01: $(cnt_susc_01),susc group 2: $(cnt_susc_2), exposed: $(cnt_exposed), infectious: $(cnt_infectious), recovered:$(cnt_recovered)", )
-    return cnt_susc_01, cnt_susc_2, cnt_exposed,cnt_infectious,cnt_recovered
-end
-
-function runModel(model, iterations)
-    for i in 1:iterations
-        step!(model, agent_step!)
-    end
-end
-
-function runModelWithPlot(model, iterations)
-    cum_susc_1 = []
-    cum_susc_2 = []
-    cum_exposed = []
-    cum_infectious = []
-    cum_recovered = []
-
-    for i in 1:iterations
-        cnt_susc_01,cnt_susc_2,cnt_exposed,cnt_infectious,cnt_recovered = print_details(model)
-        push!(cum_susc_1,cnt_susc_01)
-        push!(cum_susc_2,cnt_susc_2)
-        push!(cum_exposed,cnt_exposed)
-        push!(cum_infectious,cnt_infectious)
-        push!(cum_recovered,cnt_recovered)
-        step!(model, agent_step!)
-    end
-
-
-    plot_labels = ["S" "E" "I" "R"]
-    plot_lines = [cum_susc_1 cum_exposed cum_infectious cum_recovered]
-    plot_linecolor = [:blue :orange :red :black]
-
-    plot_labels = ["S_fearful" "S_crazy" "E" "I" "R"]
-    plot_lines = [cum_susc_1 cum_susc_2 cum_exposed cum_infectious cum_recovered]
-    plot_linecolor = [:blue :lightblue :orange :red :black]
-
-    Plots.plot(1:iterations,
-    plot_lines/n_nodes * 100,
-    labels = plot_labels, 
-    linewidth=3,
-    linecolor = plot_linecolor,
-    xlabel = "time [t]", 
-    ylabel = "proportion of population [%]",
-    guidefontsize = 17,
-    tickfontsize = 17,
-    legendfontsize = 17,
-    legend=:outertopright)
-end
-
-
-# increasing susceptibility
-# increasing # edges
-# increasing # nodes
-
-n_nodes = 100
-n_edges = 150
-n_infected_agents = 10
-base_susceptibility = 0.5
-@time begin
-    model = initialize(;n_nodes = n_nodes, n_edges = n_edges, n_infected_agents = n_infected_agents, base_susceptibility = base_susceptibility, hom_het = "heterogenous")
-    runModel(model, 30)
-end
+# base_susceptibility = 0.5
+# @time begin
+#     for i in 1:900
+#         model = initialize(;seed = i, n_nodes = n_nodes, n_edges = n_edges, n_infected_agents = n_infected_agents, base_susceptibility = base_susceptibility, hom_het = "heterogenous")
+#         runModel(model, iterations)
+#     end
+# end
 
 
 # RUN MULTIPLE times
+susc_1_avg = [] 
+susc_2_avg = []
+exposed_avg = []
+infectious_avg = []
+infectious_1_avg = []
+infectious_2_avg = []
+recovered_avg = []
+overall = []
+
+
+# PARAMS
+seed = 5
+iterations = 30
+base_susceptibility = 0.5
+hom_het = "heterogenous"
+n_nodes = 1000
+n_edges = 1500
+n_infected_agents = 100
+
+
 @time begin
-    for i in 1:5
-        model = initialize(;seed = i, n_nodes = n_nodes, n_edges = n_edges, n_infected_agents = n_infected_agents, base_susceptibility = 0.1, hom_het = "heterogenous")
-        fig = runModelWithPlot(model, 30)
-        savefig(fig, "seir_plot$(i).png") 
+    for i in 1:seed
+        # create model
+        model = initialize(;
+        seed = i,
+         n_nodes = n_nodes,
+          n_edges = n_edges,
+           n_infected_agents = n_infected_agents,
+            base_susceptibility = base_susceptibility, 
+            hom_het = hom_het
+            )
+        
+        # run model for x iterations & extract vector w/ disease state counts per iteration
+        plot, susc, susc_1, susc_2, exposed, infectious, infectious_1, infectious_2, recovered  = runModelWithPlot(model, iterations)
+        # savefig(plot, "seir_plot$(i).png") 
+        push!(overall, infectious_1)
+        push!(overall, infectious_2)
+        if infectious_1_avg == [] 
+            infectious_1_avg = infectious_1
+            infectious_2_avg = infectious_2
+        else
+            infectious_1_avg += infectious_1
+            infectious_2_avg += infectious_2
+        end
     end
 end
-  
 
+plot = Plots.plot(1:iterations,
+overall/n_nodes * 100, linecolor = :gray,
+legend = false,
+xlabel = "time [t]", 
+ylabel = "proportion of population [%]",
+guidefontsize = 17,
+tickfontsize = 17
+)
 
-model = initialize(;seed = 6132409871023984, n_nodes = n_nodes, n_edges = n_edges, n_infected_agents = n_infected_agents, base_susceptibility = 0.1, hom_het = "heterogenous")
-fig1 = runModelWithPlot(model, 30)
-savefig(fig1, "seir_plot$(1).png") 
+Plots.plot!(1:iterations,
+[infectious_1_avg, infectious_2_avg]/n_nodes * 100 / seed,
+linewidth = 3
+)
 
-model = initialize(;seed = 9982374982734, n_nodes = n_nodes, n_edges = n_edges, n_infected_agents = n_infected_agents, base_susceptibility = 0.1, hom_het = "heterogenous")
-fig2 = runModelWithPlot(model, 30)
-savefig(fig2, "seir_plot$(2).png") 
-
-# createPlot(model)
-# savefig("seir_plot.png") 
+savefig("Infections_With_Seeds.png")
 
 
  ######## VIZ
 
-model = initialize(; hom_het = "heterogenous")
+# model = initialize(; hom_het = "heterogenous")
 
+# adata = [(susceptible, count), (exposed, count), (infectious, count), (recovered, count)]
 
-function person_color(p)
-   
-    person = collect(p)[1]
-    if person.health_status == 0
-        return :blue
-    elseif person.health_status == 1
-       return :orange 
-    elseif person.health_status == 2
-       return :red 
-    else
-       return :black 
-   end
-end
+# # static plot:
+# figure, _ = abmplot(model; ac = person_color, am = person_shape, as = 25)
+# figure
 
-function person_shape(p)
-    person = collect(p)[1]
-    if person.group == 0 # avg;
-        return :rect 
-    elseif person.group == 1 # low-contact (fearful)
-        return :xcross 
-    elseif person.group == 2 # high-contact (crazy)
-        return :star5
-    else
-        return
-    end
-end
+# # interactive plot: 
+# model = initialize(;hom_het = "heterogenous")
+# figs, abmobs = abmexploration(model; agent_step!, ac = person_color, am = person_shape, as = 25, adata)
+# figs
 
-adata = [(susceptible, count), (exposed, count), (infectious, count), (recovered, count)]
-
-
-# static plot:
-figure, _ = abmplot(model; ac = person_color, am = person_shape, as = 25)
-figure
-
-# interactive plot: 
-model = initialize(;hom_het = "heterogenous")
-figs, abmobs = abmexploration(model; agent_step!, ac = person_color, am = person_shape, as = 25, adata)
-figs
-
-# video
-abmvideo("ourmodel.mp4", model, agent_step!; ac = person_color, am = person_shape, as = 25, frames = 200, framerate = 30)
+# # video
+# model = initialize(;seed = 55, n_nodes = 100, n_edges = 150, n_infected_agents = 10, base_susceptibility = 0.5, hom_het = "heterogenous")
+# abmvideo("ourmodel.mp4", model, agent_step!; ac = person_color, am = person_shape, as = 25, frames = 25, framerate = 5)
 
 
 # DEPRECATED 
