@@ -20,24 +20,26 @@ type_recovered(p::Person_Sim) = p.health_status == 3
 
 # creates ABM with default values (can be overwritten)
 function initialize(;
-    base_susceptibility = 0.1,
-    recovery_rate = 0.2,
-    infection_duration = 5,
-    n_nodes = 100,
-    n_edges = 200,
-    n_infected_agents = 10,
-    seed = 1234,
-    hom_het = "homogenous",
-    assortative = "fearful",
-    frac_fearful = 0.5,
-    network_structure = "random" #Options: "random", "smallworld"
+    base_susceptibility=0.1,
+    recovery_rate=0.2,
+    infection_duration=5,
+    n_nodes=100,
+    # p_edge = 0.0097,
+    # n_infected_agents = 10,
+    seed=1234,
+    hom_het="homogenous",
+    assortative="fearful",
+    frac_fearful=0.5,
+    network_structure="random" #Options: "random", "smallworld"
 )
 
     # Environment
     if network_structure == "random"
-        net = erdos_renyi(n_nodes,n_edges)    # input : nodes, edges # small world? watson # TODO: how to implement alternative network structure?
+        net = erdos_renyi(n_nodes, 0.0097)    # input : nodes, edges # small world? watson # TODO: how to implement alternative network structure?
     elseif network_structure == "smallworld"
-        net = newman_watts_strogatz(n_nodes, 4, 0) #expected degree k(1 + β) #TODO: This is very much work in progress → No decision on k, β has been made
+        net = newman_watts_strogatz(n_nodes, 10, 0.01) #expected degree k(1 + β) #TODO: This is very much work in progress → No decision on k, β has been made
+    elseif network_structure == "preferential"
+        net = barabasi_albert(n_nodes, 5)
     else
         throw(DomainError)
     end
@@ -61,92 +63,100 @@ function initialize(;
     # Model; unremovable = agents never leave the model
     model = UnremovableABM(
         Person_Sim, space;
-            properties, rng, scheduler = Schedulers.Randomly() # TODO: investigate what scheduler does? # @jakobrehmann: I belive you talked to Andre about this? If so, pls add a comment here
-        )
-    
+        properties, rng, scheduler=Schedulers.Randomly() # TODO: investigate what scheduler does? # @jakobrehmann: I belive you talked to Andre about this? If so, pls add a comment here
+    )
+
     # add agents to model
     if hom_het == "homogenous"
         for i in 1:n_nodes
-            p = Person_Sim(i,1,base_susceptibility,0,0,0,0.9) # TODO: what does position of 1 mean? # Syd: I believe this means that the agent is placed on the node with id 1
-            add_agent_single!(p,model) 
+            p = Person_Sim(i, 1, base_susceptibility, 0, 0, 0, 0.9) # TODO: what does position of 1 mean? # Syd: I believe this means that the agent is placed on the node with id 1
+            add_agent_single!(p, model)
         end
     elseif hom_het == "heterogenous"
         #First: Do the fearful people, second to last argument: 1 → fearful
         for i in 1:(n_nodes)*frac_fearful
-            p = Person_Sim(i,1,base_susceptibility,0,0,1,0.5) 
-            add_agent_single!(p,model)
+            p = Person_Sim(i, 1, base_susceptibility, 0, 0, 1, 0.5)
+            add_agent_single!(p, model)
         end
         #Now: To the crazy people, second to last argument : 2 → crazy
         for i in ((n_nodes)*frac_fearful+1):(n_nodes)
-            p = Person_Sim(i,1,base_susceptibility,0,0,2,1.5) 
-            add_agent_single!(p,model)
+            p = Person_Sim(i, 1, base_susceptibility, 0, 0, 2, 1.5)
+            add_agent_single!(p, model)
         end
     elseif hom_het == "heterogenous_assortative"
         if assortative == "fearful"
-            original_group = 2
-            new_group = 1
+            original_group = 1
+            new_group = 2
         elseif assortative == "crazy"
             original_group = 2
             new_group = 1
         end
 
+        # {
+        #     first_agent = random_agent(model)
+        #     first_agent.group = new_group
+        #     add_agent_single!(first_agent)
+        #     empty_nearby_positions(first_agent)
+        # }
+
+
+
         for i in 1:n_nodes
-            p = Person_Sim(i,1,base_susceptibility,0,0,original_group,0.5) # TODO: what does position of 1 mean? # Syd: I believe this means that the agent is placed on the node with id 1
-            add_agent_single!(p,model) 
+            p = Person_Sim(i, 1, base_susceptibility, 0, 0, original_group, 0.5) # TODO: what does position of 1 mean? # Syd: I believe this means that the agent is placed on the node with id 1
+            add_agent_single!(p, model)
         end
 
-            agents_p = random_agent(model)
-            agents_p.group = new_group
-            agents_p = agents_p.id
-            all_neighbors = []
-            no_remaining = n_nodes/2
-
-            while no_remaining > 0
-                for agent in agents_p
-                    for neighbor in nearby_agents(getindex(model, agent), model)
-                        if neighbor.group == original_group
-                            neighbor.group = new_group
-                            no_remaining -= 1
-                        end
-                        push!(all_neighbors, neighbor.id)
+        first_agent = random_agent(model)
+        first_agent.group = new_group
+        agents_p = Set()
+        push!(agents_p, first_agent.id)
+        all_neighbors = Set()
+        no_remaining = n_nodes / 2 - 1
+        people_added_to_group = 0
+        while no_remaining > 0
+            println("NUMBER REMAINING: $(no_remaining)")
+            for agent in agents_p
+                for neighbor in nearby_agents(getindex(model, agent), model)
+                    if neighbor.group == original_group
+                        neighbor.group = new_group
+                        people_added_to_group += 1
                     end
+                    push!(all_neighbors, neighbor.id)
                 end
-                agents_p = all_neighbors
-                all_neighbors = []
             end
+
+            if people_added_to_group == 0
+                first_agent = random_agent(model)
+                while first_agent.group == new_group
+                    first_agent = random_agent(model)
+                end
+                first_agent.group = new_group
+                no_remaining -= 1
+                agents_p = Set()
+                push!(agents_p, first_agent.id)
+            else
+                no_remaining -= people_added_to_group
+                people_added_to_group = 0
+                agents_p = all_neighbors
+            end
+            all_neighbors = []
+        end
     else
         throw(SystemError)
     end
 
-    # infect a random group of agents
-    # TODO: make sure the same agent isn't infected multiple times #TODO @jakobrehmann: Pls check my work + give feedbck
-    i = 0 
-    
-    infected_agents_group = []
-    infected_agents_degree = []
-
-    while i < n_infected_agents
-        sick_person = random_agent(model)
-        if sick_person.health_status == 0
-          sick_person.health_status = 2
-          push!(infected_agents_group, sick_person.group)
-          push!(infected_agents_degree,degree(net,sick_person.pos))
-          i +=1
-        end
-    end
-
-    return model, infected_agents_group, infected_agents_degree
+    return model, net
 end
 
 # Agent Step Function: this transitions agents from one disease state to another
-function agent_step!(person,model)
+function agent_step!(person, model)
     # if infectious
-    if person.health_status == 2 
+    if person.health_status == 2
         if rand(model.rng) <= model.recovery_rate #Agents recover with a probability of recovery_rate
             person.health_status = 3
         end
     end
-    
+
     # if exposed
     if person.health_status == 1 # if exposed
         person.health_status = 2 # change to infectious
