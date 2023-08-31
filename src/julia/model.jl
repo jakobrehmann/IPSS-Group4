@@ -1,3 +1,9 @@
+# Import neccessary packages
+using Pkg
+Pkg.activate(".")
+using Agents, Random, Graphs, Plots, Makie, CairoMakie, GraphMakie, GraphIO, Colors, GLMakie, DataFrames
+# pkg> add https://github.com/asgolovin/Agents.jl
+
 # Define Agent
 @agent Person_Sim GraphAgent begin
     susceptibility::Float64 # between 0 (no chance of infection) and 1 (100% chance)
@@ -31,6 +37,8 @@ function initialize(;
         net = erdos_renyi(n_nodes,n_edges)    # input : nodes, edges # small world? watson # TODO: how to implement alternative network structure?
     elseif network_structure == "smallworld"
         net = newman_watts_strogatz(n_nodes, k, β) #expected degree k(1 + β) #TODO: This is very much work in progress → No decision on k, β has been made
+    else
+        throw(DomainError)
     end
 
 
@@ -72,6 +80,8 @@ function initialize(;
             p = Person_Sim(i,1,base_susceptibility,0,0,2,1.5) 
             add_agent_single!(p,model)
         end
+    else
+        throw(SystemError)
     end
 
     # infect a random group of agents
