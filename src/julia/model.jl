@@ -87,15 +87,21 @@ function initialize(;
     # infect a random group of agents
     # TODO: make sure the same agent isn't infected multiple times #TODO @jakobrehmann: Pls check my work + give feedbck
     i = 0 
+    
+    infected_agents_group = []
+    infected_agents_degree = []
+
     while i < n_infected_agents
         sick_person = random_agent(model)
         if sick_person.health_status == 0
           sick_person.health_status = 2
+          push!(infected_agents_group, sick_person.group)
+          push!(infected_agents_degree,degree(net,sick_person.pos))
           i +=1
         end
     end
 
-    return model
+    return model, infected_agents_group, infected_agents_degree
 end
 
 # Agent Step Function: this transitions agents from one disease state to another

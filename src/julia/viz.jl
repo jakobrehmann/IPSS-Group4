@@ -1,3 +1,6 @@
+adata = [(type_susceptible, count), (type_exposed, count), (type_infectious, count), (type_recovered, count)]
+
+
 function person_color(p)
    
     person = collect(p)[1]
