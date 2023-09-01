@@ -1,3 +1,44 @@
+# df
+# # Seed Plots
+
+# function calc_min_max(network, scenario)
+#     x = collect(1:iterations)
+#     y = network_to_scenario_to_seed_to_data[network][scenario]["infections_avg"]
+#     ymin = network_to_scenario_to_seed_to_data[network][scenario]["infections_avg"] - network_to_scenario_to_seed_to_data[network][scenario]["sd"]
+#     ymax = network_to_scenario_to_seed_to_data[network][scenario]["infections_avg"] + network_to_scenario_to_seed_to_data[network][scenario]["sd"]
+
+#     return x, y, ymin, ymax
+# end
+
+# ##### New attempt
+
+# xd = 1:iterations
+# yd = 
+# Plots.plot(1:iterations,network_to_scenario_to_seed_to_data["smallworld"]["homogenous"]["infectious_per_seed"], color = :blue, opacity = 0.1)
+# Plots.plot!(1:iterations,network_to_scenario_to_seed_to_data["smallworld"]["heterogenous"]["infectious_per_seed"], color = :red, opacity = 0.1)
+# Plots.plot!(1:iterations,network_to_scenario_to_seed_to_data["smallworld"]["heterogenous_assortative"]["infectious_per_seed"], color = :green, opacity = 0.1)
+
+# Plots.plot!(1:iterations,network_to_scenario_to_seed_to_data["smallworld"]["homogenous"]["infections_avg"], color = :blue, linewidth = 3)
+# Plots.plot!(1:iterations,network_to_scenario_to_seed_to_data["smallworld"]["heterogenous"]["infections_avg"], color = :red, linewidth = 3)
+# Plots.plot!(1:iterations,network_to_scenario_to_seed_to_data["smallworld"]["heterogenous_assortative"]["infections_avg"], color = :green, linewidth = 3)
+
+
+# network = "smallworld"
+# x_hom, y_hom, ymin_hom, ymax_hom = calc_min_max(network, "homogenous")
+# x_het, y_het, ymin_het, ymax_het = calc_min_max(network, "heterogenous")
+# x_het_ass, y_het_ass, ymin_het_ass, ymax_het_ass = calc_min_max(network, "heterogenous_assortative")
+
+# p = Gadfly.plot(layer(x=x_hom, y=y_hom, ymin=ymin_hom, ymax=ymax_hom, Geom.line, Geom.ribbon, Gadfly.Theme(lowlight_color = c->RGBA{Float32}(0, 0, 255, 0.01))))
+# savefig("yyy.png")
+# layer(x=x_het, y=y_het, ymin=ymin_het, ymax=ymax_het, Geom.line, Geom.ribbon, Gadfly.Theme(default_color=colorant"green",  lowlight_color = c->RGBA{Float32}(c.r, c.g, c.b, 0.01))),
+# layer(x=x_het_ass, y=y_het_ass, ymin=ymin_het_ass, ymax=ymax_het_ass, Geom.line, Geom.ribbon,Gadfly.Theme(default_color=colorant"red", lowlight_color = c->RGBA{Float32}(c.r, c.g, c.b, 0.01))))
+# # 
+
+# p
+# draw(SVG("test1.svg", 12cm, 6cm), p)
+
+
+
 
 # plot = Plots.plot(1:iterations,
 # overall/n_nodes * 100, linecolor = :gray,

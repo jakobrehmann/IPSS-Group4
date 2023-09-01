@@ -18,24 +18,13 @@ type_exposed(p::Person_Sim) = p.health_status == 1
 type_infectious(p::Person_Sim) = p.health_status == 2
 type_recovered(p::Person_Sim) = p.health_status == 3
 
-# creates ABM with default values (can be overwritten)
-function initialize(;
-    base_susceptibility=0.1,
-    recovery_rate=0.2,
-    infection_duration=5,
-    n_nodes=100,
-    # p_edge = 0.0097,
-    # n_infected_agents = 10,
-    seed=1234,
-    hom_het="homogenous",
-    assortative="fearful",
-    frac_fearful=0.5,
+function initializeNetwork(;
+    n_nodes = 1000,
     network_structure="random" #Options: "random", "smallworld"
 )
 
-    # Environment
     if network_structure == "random"
-        net = erdos_renyi(n_nodes, 0.1)    # input : nodes, edges # small world? watson # TODO: how to implement alternative network structure?
+        net = erdos_renyi(n_nodes, 10/ n_nodes)    # input : nodes, edges # small world? watson # TODO: how to implement alternative network structure?
     elseif network_structure == "smallworld"
         net = newman_watts_strogatz(n_nodes, 10, 0.01) #expected degree k(1 + β) #TODO: This is very much work in progress → No decision on k, β has been made
     elseif network_structure == "preferential"
@@ -43,6 +32,25 @@ function initialize(;
     else
         throw(DomainError)
     end
+    
+    return net
+end
+
+
+# creates ABM with default values (can be overwritten)
+function initialize(net;
+    base_susceptibility=0.1,
+    recovery_rate=0.2,
+    infection_duration=5,
+    n_nodes=1000,
+    # p_edge = 0.0097,
+    # n_infected_agents = 10,
+    seed=46872,
+    hom_het="homogenous",
+    assortative="fearful",
+    frac_fearful=0.5
+)
+
 
 
     # create a space
@@ -63,13 +71,13 @@ function initialize(;
     # Model; unremovable = agents never leave the model
     model = UnremovableABM(
         Person_Sim, space;
-        properties, rng, scheduler=Schedulers.Randomly() # TODO: investigate what scheduler does? # @jakobrehmann: I belive you talked to Andre about this? If so, pls add a comment here
+        properties, rng, scheduler=Schedulers.Randomly() # explain
     )
 
     # add agents to model
     if hom_het == "homogenous"
         for i in 1:n_nodes
-            p = Person_Sim(i, 1, base_susceptibility, 0, 0, 0, 0.9) # TODO: what does position of 1 mean? # Syd: I believe this means that the agent is placed on the node with id 1
+            p = Person_Sim(i, 1, base_susceptibility, 0, 0, 0, 1.0) # JR: Changed from 0.9
             add_agent_single!(p, model)
         end
     elseif hom_het == "heterogenous"
@@ -84,15 +92,15 @@ function initialize(;
             add_agent_single!(p, model)
         end
     elseif hom_het == "heterogenous_assortative"
-        if assortative == "fearful"
-            original_group = 1
+        if assortative == "fearful" # 
+            original_group = 2 
             original_group_factor = 1.5
-            new_group = 2
-            new_group_factor = 0.5
+            new_group = 1 # fearful -> 1
+            new_group_factor = 0.5 # fearful 
         elseif assortative == "crazy"
-            original_group = 2
+            original_group = 1
             original_group_factor = 0.5
-            new_group = 1
+            new_group = 2
             new_group_factor = 1.5
 
         end
@@ -145,7 +153,7 @@ function initialize(;
     else
         throw(SystemError)
     end
-    return model, net
+    return model
 end
 
 
