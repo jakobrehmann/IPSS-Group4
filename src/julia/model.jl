@@ -35,7 +35,7 @@ function initialize(;
 
     # Environment
     if network_structure == "random"
-        net = erdos_renyi(n_nodes, 0.0097)    # input : nodes, edges # small world? watson # TODO: how to implement alternative network structure?
+        net = erdos_renyi(n_nodes, 0.1)    # input : nodes, edges # small world? watson # TODO: how to implement alternative network structure?
     elseif network_structure == "smallworld"
         net = newman_watts_strogatz(n_nodes, 10, 0.01) #expected degree k(1 + β) #TODO: This is very much work in progress → No decision on k, β has been made
     elseif network_structure == "preferential"
@@ -86,67 +86,68 @@ function initialize(;
     elseif hom_het == "heterogenous_assortative"
         if assortative == "fearful"
             original_group = 1
+            original_group_factor = 1.5
             new_group = 2
+            new_group_factor = 0.5
         elseif assortative == "crazy"
             original_group = 2
+            original_group_factor = 0.5
             new_group = 1
+            new_group_factor = 1.5
+
         end
 
-        # {
-        #     first_agent = random_agent(model)
-        #     first_agent.group = new_group
-        #     add_agent_single!(first_agent)
-        #     empty_nearby_positions(first_agent)
-        # }
-
-
-
-        for i in 1:n_nodes
-            p = Person_Sim(i, 1, base_susceptibility, 0, 0, original_group, 0.5) # TODO: what does position of 1 mean? # Syd: I believe this means that the agent is placed on the node with id 1
-            add_agent_single!(p, model)
-        end
-
-        first_agent = random_agent(model)
-        first_agent.group = new_group
-        agents_p = Set()
-        push!(agents_p, first_agent.id)
-        all_neighbors = Set()
+        first_agent = Person_Sim(1, 1, base_susceptibility, 0, 0, new_group, new_group_factor) #TODO: randomize position # todo choose chance of infection
+        add_agent_single!(first_agent, model)
         no_remaining = n_nodes / 2 - 1
-        people_added_to_group = 0
-        while no_remaining > 0
-            println("NUMBER REMAINING: $(no_remaining)")
-            for agent in agents_p
-                for neighbor in nearby_agents(getindex(model, agent), model)
-                    if neighbor.group == original_group
-                        neighbor.group = new_group
-                        people_added_to_group += 1
-                    end
-                    push!(all_neighbors, neighbor.id)
+        agent_counter = 2
+
+        r = 1
+        while (no_remaining > 0)
+            neighbors = collect(empty_nearby_positions(first_agent, model, r))
+
+            while length(neighbors) == 0 && no_remaining > 0
+                empty_pos = collect(Agents.empty_positions(model))
+
+                if length(empty_pos) == 0
+                    @goto escape_label
                 end
+                
+                pos = rand(empty_pos)
+
+                first_agent = Person_Sim(agent_counter, pos , base_susceptibility, 0, 0, new_group, new_group_factor)
+                add_agent_pos!(first_agent, model)
+                agent_counter += 1
+                no_remaining -= 1
+                r = 1
+                neighbors = collect(empty_nearby_positions(first_agent, model, r))
             end
 
-            if people_added_to_group == 0
-                first_agent = random_agent(model)
-                while first_agent.group == new_group
-                    first_agent = random_agent(model)
-                end
-                first_agent.group = new_group
+            for neighbor_pos in neighbors
+                p = Person_Sim(agent_counter, neighbor_pos, base_susceptibility, 0, 0, new_group, new_group_factor)
+                add_agent_pos!(p, model)
+                agent_counter += 1
                 no_remaining -= 1
-                agents_p = Set()
-                push!(agents_p, first_agent.id)
-            else
-                no_remaining -= people_added_to_group
-                people_added_to_group = 0
-                agents_p = all_neighbors
+
+                if no_remaining == 0
+                    @goto escape_label
+                end
             end
-            all_neighbors = []
+            r += 1
+        end
+        @label escape_label
+
+        for agent_pos in collect(empty_positions(model))
+            p = Person_Sim(agent_counter, agent_pos, base_susceptibility, 0, 0, original_group,original_group_factor)
+            add_agent_pos!(p, model)
+            agent_counter += 1
         end
     else
         throw(SystemError)
     end
-
     return model, net
 end
+
 
 # Agent Step Function: this transitions agents from one disease state to another
 function agent_step!(person, model)
