@@ -2,6 +2,62 @@ include("model.jl")
 include("model_utils.jl")
 include("viz.jl")
 
+####
+
+n_nodes = 250
+begin
+    net = initializeNetwork(; n_nodes = n_nodes, network_structure = "smallworld")
+    model = initialize(net;
+    seed=5,
+    n_nodes=n_nodes,
+    base_susceptibility=0.1,
+    hom_het="heterogenous_assortative"
+    )
+
+    sick_person = random_agent(model) # does this use the seed?
+    sick_person.health_status = 2
+
+ 
+
+
+# For the hetero-assortative network, the infections will typically die out before all are infected.
+# Is that okay? 
+
+    figure, _ = abmplot(model; ac = person_color2, am = person_shape, as = 25)
+    figure
+
+
+    # figs, abmobs = abmexploration(model; agent_step!, ac = person_color, am = person_shape, as = 25, adata)
+    # figs
+
+    abmvideo("ourmodel.mp4", model, agent_step!; 
+    ac = person_color, am = person_shape, as = 15, frames = 150, framerate = 5,
+    figure = (; resolution = (1600, 1600)))  
+
+
+
+
+    # savefig(figure,"smallworld-heterogenous_assortative.png")
+
+end
+
+
+
+function person_color2(p)
+    p = collect(p)[1]
+    if p.group == 1
+        return :purple
+    else
+        return :orange
+
+    end
+end
+
+figure, _ = abmplot(model; ac = person_color2, am = person_shape, as = 25)
+figure
+
+
+
 
 using Statistics, CSV
 ############################################
@@ -101,14 +157,18 @@ network_structures = ["random","smallworld", "preferential"]
             network_to_scenario_to_seed_to_data[network_structure][scenario]["infectious_per_seed_1"] = infectious_per_seed_1
             network_to_scenario_to_seed_to_data[network_structure][scenario]["infectious_per_seed_2"] = infectious_per_seed_2
         end
-
     end
 end
 
 
+######
+network_structure = "preferential"
+scenario = "heterogenous_assortative"
+Plots.scatter(network_to_scenario_to_seed_to_data[network_structure][scenario]["degree"],network_to_scenario_to_seed_to_data[network_structure][scenario]["cum_infections"])
+
 
 ######
-
+file_name = "1609"
 
 labels_random = []
 lines_random = []
@@ -130,7 +190,7 @@ Plots.plot(1:iterations,
     legendfontsize=12,
 )
 
-savefig("random-a.png")
+savefig("random-$(file_name).png")
 
 
 
@@ -157,7 +217,7 @@ Plots.plot(1:iterations,
 
 
 
-savefig("smallworld-b.png")
+savefig("smallworld-$(file_name).png")
 
 
 
@@ -187,7 +247,7 @@ Plots.plot(1:iterations,
 )
 
 
-savefig("preferential-1.png")
+savefig("preferential-$(file_name).png")
 
 
 
@@ -317,3 +377,7 @@ for network_structure in network_structures
         CSV.write("$(network_structure)-$(scenario)-group2.csv", df)
     end
 end
+
+
+
+
