@@ -1,75 +1,14 @@
 include("model.jl")
 include("model_utils.jl")
 include("viz.jl")
-
-####
-
-n_nodes = 250
-begin
-    net = initializeNetwork(; n_nodes = n_nodes, network_structure = "smallworld")
-    model = initialize(net;
-    seed=5,
-    n_nodes=n_nodes,
-    base_susceptibility=0.1,
-    hom_het="heterogenous_assortative"
-    )
-
-    sick_person = random_agent(model) # does this use the seed?
-    sick_person.health_status = 2
-
- 
-
-
-# For the hetero-assortative network, the infections will typically die out before all are infected.
-# Is that okay? 
-
-    figure, _ = abmplot(model; ac = person_color2, am = person_shape, as = 25)
-    figure
-
-
-    # figs, abmobs = abmexploration(model; agent_step!, ac = person_color, am = person_shape, as = 25, adata)
-    # figs
-
-    abmvideo("ourmodel.mp4", model, agent_step!; 
-    ac = person_color, am = person_shape, as = 15, frames = 150, framerate = 5,
-    figure = (; resolution = (1600, 1600)))  
-
-
-
-
-    # savefig(figure,"smallworld-heterogenous_assortative.png")
-
-end
-
-
-
-function person_color2(p)
-    p = collect(p)[1]
-    if p.group == 1
-        return :purple
-    else
-        return :orange
-
-    end
-end
-
-figure, _ = abmplot(model; ac = person_color2, am = person_shape, as = 25)
-figure
-
-
-
-
-using Statistics, CSV
-############################################
+include("creating_output.jl")
 
 # PARAMS PER RUN
-seeds = 1000
+seeds = 10
 iterations = 200
 base_susceptibility = 0.1
 n_nodes = 1000
-# p_edge = 0.0097
 n_infected_agents = 1
-
 
 # GLOBAL PARAMS
 scenarios = ["homogenous", "heterogenous", "heterogenous_assortative"]
@@ -89,19 +28,20 @@ network_structures = ["random","smallworld", "preferential"]
         for scenario in scenarios
             network_to_scenario_to_seed_to_data[network_structure][scenario] = Dict("degree" => [], "group" => [], "max_infections" => [], "max_infections_time" => [], "cum_infections" => [])
             infectious_avg = zeros(iterations)
+        
             infectious_per_seed = []
             infectious_per_seed_1 = []
             infectious_per_seed_2 = []
 
             min_infections_per_timestep = 10000 * ones(iterations)
+        
             max_infections_per_timestep = zeros(iterations)
+        
 
             # create model
             model = initialize(net;
                 seed=3,
                 n_nodes=n_nodes,
-                # p_edge=p_edge,
-                # n_infected_agents=n_infected_agents,
                 base_susceptibility=base_susceptibility,
                 hom_het=scenario
             )
@@ -114,7 +54,7 @@ network_structures = ["random","smallworld", "preferential"]
 
             for seed in 1:seeds
 
-                # infect a random group of agents
+                # Randomly choose patient zero and save their group
                 infected_agents_group = []
                 infected_agents_degree = []
 
@@ -136,23 +76,35 @@ network_structures = ["random","smallworld", "preferential"]
                 end
 
                 # run model for x iterations & extract vector w/ disease state counts per iteration
+            
                 plot, susc, susc_1, susc_2, exposed, infectious, infectious_1, infectious_2, recovered = runModelWithPlot(model, iterations)
+            
 
+                #Computation of average of infections over seeds
                 infectious_avg += infectious / seeds
-                min_infections_per_timestep = min.(min_infections_per_timestep, infectious)
+                #For an approximation of the standard deviation, the min/max across seeds are computed
+                min_infections_per_timestep = min.(min_infections_per_timestep, infectious) 
                 max_infections_per_timestep = max.(max_infections_per_timestep, infectious)
 
+                #Save attributes for initially infected agent
                 push!(network_to_scenario_to_seed_to_data[network_structure][scenario]["degree"], infected_agents_degree[1])
                 push!(network_to_scenario_to_seed_to_data[network_structure][scenario]["group"], infected_agents_group[1])
+                #Save peak and timing of peak of infection curve
                 push!(network_to_scenario_to_seed_to_data[network_structure][scenario]["max_infections"], findmax(infectious)[1])
                 push!(network_to_scenario_to_seed_to_data[network_structure][scenario]["max_infections_time"], findmax(infectious)[2])
+                #Save cumultative number of infections
                 push!(network_to_scenario_to_seed_to_data[network_structure][scenario]["cum_infections"], sum(infectious))
+                #Save no. of infectious people per iteration for every individual seed
                 push!(infectious_per_seed, infectious)
                 push!(infectious_per_seed_1, infectious_1)
                 push!(infectious_per_seed_2, infectious_2)
             end
+            
+            #Add average of infections over seeds to nested dictionary
             network_to_scenario_to_seed_to_data[network_structure][scenario]["infections_avg"] = infectious_avg
+            #Compute + add standard deviation of infections over seeds to nested dictionary
             network_to_scenario_to_seed_to_data[network_structure][scenario]["sd"] = (max_infections_per_timestep - min_infections_per_timestep) / 4
+            #Add no. of infectious people per iteration to nested dictionary
             network_to_scenario_to_seed_to_data[network_structure][scenario]["infectious_per_seed"] = infectious_per_seed
             network_to_scenario_to_seed_to_data[network_structure][scenario]["infectious_per_seed_1"] = infectious_per_seed_1
             network_to_scenario_to_seed_to_data[network_structure][scenario]["infectious_per_seed_2"] = infectious_per_seed_2
@@ -161,222 +113,6 @@ network_structures = ["random","smallworld", "preferential"]
 end
 
 
-######
-network_structure = "preferential"
-scenario = "heterogenous_assortative"
-Plots.scatter(network_to_scenario_to_seed_to_data[network_structure][scenario]["degree"],network_to_scenario_to_seed_to_data[network_structure][scenario]["cum_infections"])
-
-
-######
-file_name = "1609"
-
-labels_random = []
-lines_random = []
-
-network_structure = "random"
-for scenario in scenarios
-    push!(labels_random, "I ($(network_structure)-$(scenario))")
-    push!(lines_random, network_to_scenario_to_seed_to_data[network_structure][scenario]["infections_avg"])
-end
-
-Plots.plot(1:iterations,
-    lines_random / n_nodes * 100,
-    labels=reshape(labels_random, (1, length(labels_random))),
-    xlabel="time [t]",
-    ylabel="proportion of population [%]",
-    linewidth=3,
-    guidefontsize=12,
-    tickfontsize=12,
-    legendfontsize=12,
-)
-
-savefig("random-$(file_name).png")
-
-
-
-labels_small = []
-lines_small = []
-
-network_structure = "smallworld"
-for scenario in scenarios
-    push!(labels_small, "I ($(network_structure)-$(scenario))")
-    push!(lines_small, network_to_scenario_to_seed_to_data[network_structure][scenario]["infections_avg"])
-end
-
-Plots.plot(1:iterations,
-    lines_small / n_nodes * 100,
-    labels=reshape(labels_small, (1, length(labels_small))),
-    xlabel="time [t]",
-    ylabel="proportion of population [%]",
-    linewidth=3,
-    guidefontsize=12,
-    tickfontsize=12,
-    legendfontsize=12,
-    legendposition=:bottomright
-)
-
-
-
-savefig("smallworld-$(file_name).png")
-
-
-
-
-
-
-
-labels_pref = []
-lines_pref = []
-
-network_structure = "preferential"
-for scenario in scenarios
-    push!(labels_pref, "I ($(network_structure)-$(scenario))")
-    push!(lines_pref, network_to_scenario_to_seed_to_data[network_structure][scenario]["infections_avg"])
-end
-
-Plots.plot(1:iterations,
-    lines_pref / n_nodes * 100,
-    labels=reshape(labels_pref, (1, length(labels_pref))),
-    xlabel="time [t]",
-    ylabel="proportion of population [%]",
-    linewidth=3,
-    guidefontsize=12,
-    tickfontsize=12,
-    legendfontsize=12,
-    legendposition=:bottomright
-)
-
-
-savefig("preferential-$(file_name).png")
-
-
-
-
-
-labels = []
-lines = []
-for network_structure in network_structures
-    for scenario in scenarios
-        push!(labels, "I ($(network_structure)-$(scenario))")
-        push!(lines, network_to_scenario_to_seed_to_data[network_structure][scenario]["infections_avg"])
-    end
-end
-
-
-Plots.plot(1:iterations,
-    lines / n_nodes * 100,
-    labels=reshape(labels, (1, length(labels))))
-
-
-Plots.scatter(network_to_scenario_to_seed_to_data["random"]["heterogenous"]["degree"], network_to_scenario_to_seed_to_data["random"]["heterogenous"]["max_infections"])
-
-
-
-# model, x, y = initialize(;
-#                           seed=1,
-#                           n_nodes=n_nodes,
-#                           n_edges=n_edges,
-#                           n_infected_agents=n_infected_agents,
-#                           base_susceptibility=base_susceptibility,
-#                           hom_het="homogenous",
-#                           network_structure="random"
-#                       )
-
-
-
-# x
-# y
-
-# model = initialize(;hom_het = "heterogenous")
-# figs, abmobs = abmexploration(model; agent_step!, ac = person_color, am = person_shape, as = 25, adata)
-# figs
-
-
-
-
-
-
-
-#
-# seeds = 500
-# iterations = 90
-# base_susceptibility = 0.1
-# n_nodes = 100
-# # p_edge = 0.0097
-# n_infected_agents = 1
-
-
-# model, net = initialize(;
-#     seed=9871,
-#     n_nodes=n_nodes,
-#     # p_edge=p_edge,
-#     # n_infected_agents=n_infected_agents,
-#     base_susceptibility=base_susceptibility,
-#     hom_het="heterogenous_assortative",
-#     network_structure="random"
-# )
-
-
-
-# histogram(Graphs.degree(net), bins = 20, xlabel = "Value", ylabel = "Frequency", title = "Histogram")
-
-
-# figs, abmobs = abmexploration(model; agent_step!, ac=person_color, am=person_shape, as=25)
-# figs
-
-# cnt1 = 0
-# cnt0 = 0
-# cnt2 = 0
-# for agent in allagents(model)
-#     if agent.group == 1
-#         cnt1 += 1
-#     elseif agent.group == 2
-#         cnt2 += 1
-#     else
-#         cnt0 += 1
-#     end
-# end
-
-
-
-for network_structure in network_structures
-    for scenario in scenarios
-
-        df = DataFrame()
-
-        i = 1
-        for vec in network_to_scenario_to_seed_to_data[network_structure][scenario]["infectious_per_seed"]
-            tit = "seed$(i)"
-            df[!,tit] = vec
-            i+=1
-        end
-
-        CSV.write("$(network_structure)-$(scenario).csv", df)
-
-        # group 1
-        df_1 = DataFrame()
-        i = 1
-        for vec in network_to_scenario_to_seed_to_data[network_structure][scenario]["infectious_per_seed_1"]
-            tit = "seed$(i)"
-            df[!,tit] = vec
-            i+=1
-        end
-
-        CSV.write("$(network_structure)-$(scenario)-group1.csv", df)
-
-        # group 2
-        df_2 = DataFrame()
-
-        i = 1
-        for vec in network_to_scenario_to_seed_to_data[network_structure][scenario]["infectious_per_seed_2"]
-            tit = "seed$(i)"
-            df[!,tit] = vec
-            i+=1
-        end
-
-        CSV.write("$(network_structure)-$(scenario)-group2.csv", df)
-    end
-end
 
 
 

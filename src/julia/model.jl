@@ -1,7 +1,7 @@
 # Import neccessary packages
 using Pkg
 Pkg.activate(".")
-using Agents, Random, Graphs, Plots, Makie, CairoMakie, GraphMakie, GraphIO, Colors, GLMakie, DataFrames
+using Agents, Random, Graphs, Plots, Makie, CairoMakie, GraphMakie, GraphIO, Colors, GLMakie, DataFrames, Statistics, CSV
 # pkg> add https://github.com/asgolovin/Agents.jl
 
 # Define Agent
@@ -18,17 +18,18 @@ type_exposed(p::Person_Sim) = p.health_status == 1
 type_infectious(p::Person_Sim) = p.health_status == 2
 type_recovered(p::Person_Sim) = p.health_status == 3
 
+# creates network with default values
 function initializeNetwork(;
     n_nodes = 1000,
     network_structure="random" #Options: "random", "smallworld"
 )
 
     if network_structure == "random"
-        net = erdos_renyi(n_nodes, 10/ n_nodes)    # input : nodes, edges # small world? watson # TODO: how to implement alternative network structure?
+        net = erdos_renyi(n_nodes, 10/ n_nodes)   
     elseif network_structure == "smallworld"
-        net = newman_watts_strogatz(n_nodes, 10, 0.01) #expected degree k(1 + β) #TODO: This is very much work in progress → No decision on k, β has been made
+        net = newman_watts_strogatz(n_nodes, 10, 0.01) #expected degree k(1 + β) (k = second param, β = third param)
     elseif network_structure == "preferential"
-        net = barabasi_albert(n_nodes, 5)
+        net = barabasi_albert(n_nodes, 5) 
     else
         throw(DomainError)
     end
@@ -43,8 +44,6 @@ function initialize(net;
     recovery_rate=0.2,
     infection_duration=5,
     n_nodes=1000,
-    # p_edge = 0.0097,
-    # n_infected_agents = 10,
     seed=46872,
     hom_het="homogenous",
     assortative="fearful",
@@ -55,7 +54,6 @@ function initialize(net;
 
     # create a space
     space = GraphSpace(net)
-    # graphplot(net; curves = false)
 
 
     # define model properties
@@ -95,7 +93,7 @@ function initialize(net;
         if assortative == "fearful" # 
             original_group = 2 
             original_group_factor = 1.5
-            new_group = 1 # fearful -> 1
+            new_group = 1 # fearful → 1
             new_group_factor = 0.5 # fearful 
         elseif assortative == "crazy"
             original_group = 1
@@ -105,38 +103,42 @@ function initialize(net;
 
         end
 
-        first_agent = Person_Sim(1, 1, base_susceptibility, 0, 0, new_group, new_group_factor) #TODO: randomize position # todo choose chance of infection
+        first_agent = Person_Sim(1, 1, base_susceptibility, 0, 0, new_group, new_group_factor)
         add_agent_single!(first_agent, model)
         no_remaining = n_nodes / 2 - 1
         agent_counter = 2
 
-        r = 1
+        r = 1 #search neighbordhood radius
+        #agents are placed on neighboring nodes of initial agent → radius of neighborhood is incrementally increased
         while (no_remaining > 0)
             neighbors = collect(empty_nearby_positions(first_agent, model, r))
 
+            #Only occurs if there are no more empty positions in the neighborhood (might occur if network isn't conntected) #TODO: check if text in () holds true for code
             while length(neighbors) == 0 && no_remaining > 0
                 empty_pos = collect(Agents.empty_positions(model))
 
-                if length(empty_pos) == 0
+                if length(empty_pos) == 0 #TODO: check if this is necessary
                     @goto escape_label
                 end
                 
+                #choose a random position for which the neighborhood search is started again
                 pos = rand(empty_pos)
 
                 first_agent = Person_Sim(agent_counter, pos , base_susceptibility, 0, 0, new_group, new_group_factor)
-                add_agent_pos!(first_agent, model)
+                add_agent_pos!(first_agent, model) #agent is not placed on a random position, but rather placed on node pos
                 agent_counter += 1
                 no_remaining -= 1
                 r = 1
                 neighbors = collect(empty_nearby_positions(first_agent, model, r))
             end
 
+            #adds agents to all empty spaces in neighborhood
             for neighbor_pos in neighbors
                 p = Person_Sim(agent_counter, neighbor_pos, base_susceptibility, 0, 0, new_group, new_group_factor)
-                add_agent_pos!(p, model)
+                add_agent_pos!(p, model) #again, agents not placed on random node, but rather on node pos
                 agent_counter += 1
                 no_remaining -= 1
-
+                # If there's no more agents to be placed, then escape the nested loop
                 if no_remaining == 0
                     @goto escape_label
                 end
@@ -145,6 +147,7 @@ function initialize(net;
         end
         @label escape_label
 
+        #fill remaining positions with other group
         for agent_pos in collect(empty_positions(model))
             p = Person_Sim(agent_counter, agent_pos, base_susceptibility, 0, 0, original_group,original_group_factor)
             add_agent_pos!(p, model)
