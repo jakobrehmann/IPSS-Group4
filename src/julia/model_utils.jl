@@ -1,22 +1,27 @@
 # collect details of model state in each iteration
 function count_agents_per_disease_state(model)
-    # each vector contains susc/exposed/... cnt for [normal, fearful, crazy]
-    cnt_susc = [0,0,0]
-    cnt_exposed = [0,0,0]
-    cnt_infectious = [0,0,0]
-    cnt_recovered = [0,0,0]
+    cnt_susc = 0
+    cnt_exposed = 0
+    cnt_infectious = 0
+    cnt_infectious_showingSymptoms = 0
+    cnt_recovered = 0
     for agent in allagents(model)
         if agent.health_status == 0
-            cnt_susc[agent.group + 1] += 1
+            cnt_susc += 1
         elseif agent.health_status == 1
-            cnt_exposed[agent.group + 1] += 1
+            cnt_exposed += 1
         elseif agent.health_status == 2
-            cnt_infectious[agent.group + 1] += 1
+            cnt_infectious += 1
+
+            if agent.days_infected >= model.days_until_showing_symptoms
+                cnt_infectious_showingSymptoms += 1
+            end
+
         elseif agent.health_status == 3
-            cnt_recovered[agent.group + 1] += 1
+            cnt_recovered += 1
         end
     end
-        return cnt_susc, cnt_exposed,cnt_infectious,cnt_recovered
+        return cnt_susc, cnt_exposed,cnt_infectious,cnt_infectious_showingSymptoms, cnt_recovered
 end
 
 function runModel(model, iterations)
