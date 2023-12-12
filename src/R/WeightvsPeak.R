@@ -1,13 +1,15 @@
-enter_path_here <- "/Users/jakob/git/IPSS-Group4/data/2023-12-11T135715"
+library(tidyverse)
+
+enter_path_here <- "/Users/sydney/Dropbox/JAKOB-SYDNEY/2023-12-11T115406"
 setwd(enter_path_here)
 
+# Reading in of files, the user needs to change line 9 according to the network they are interested in
 files <- list.files(path=enter_path_here, pattern="*infectious.csv", full.names=FALSE, recursive=FALSE)
 files <- files[files != paste0(enter_path_here, "_info.csv")]
-network_top <- "smallworld"
+network_top <- "smallworld" #Possible values: "random", "regular", "smallworld", "preferential"
 files <- files[grepl(network_top, files)]
 
 dataSetFull <- data.frame()
-
 for(i in 1:(length(files))){
   filesReduced <- files[i]
   
@@ -21,28 +23,32 @@ for(i in 1:(length(files))){
   }
 }
 
+#Peak height and peak position are extracted for every seed
+#Furthermore, seeds where no outbreak occurs (peakHeight < 5) are excluded
 dataSetGrouped <- dataSetFull %>% 
   group_by(BaseSuscep, DiseaseState, name) %>%
   summarise(maxInfected = max(value), timePointMax = which.max(value), sd = sd(value))
 dataSetGrouped <- dataSetGrouped %>% ungroup() %>%
                   filter(maxInfected > 5)
+dataSetExcluded <- dataSetGrouped %>% ungroup() %>%
+                  filter(maxInfected <= 5)      
 dataSetGrouped <- dataSetGrouped %>% group_by(BaseSuscep, DiseaseState) %>%
                   summarise(mean = mean(maxInfected), meanTimePoint = mean(timePointMax))
 
-ggplot(dataSetGrouped, aes(x=DiseaseState, y = mean)) +
-  geom_point() + 
+ggplot(dataSetGrouped, aes(x = DiseaseState, y = mean)) +
+  geom_point() +
   xlab("weight") +
   theme_minimal() +
   facet_wrap(~ BaseSuscep) +
   #ggtitle(network_top) +
   xlab("Considered Scenario") +
-  ylab("Maximum infected") +
+  ylab("Peak height") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
 #ggsave(paste0(str_split(file, "-")[[1]][[1]], "ScenarioVsMaxInfected.pdf"), dpi = 500, w = 9, h = 6)   
 
-ggplot(dataSetGrouped, aes(x=DiseaseState, y = meanTimePoint)) +
-geom_point() + 
+ggplot(dataSetGrouped, aes(x = DiseaseState, y = meanTimePoint)) +
+geom_point() +
 xlab("weight") +
 theme_minimal() +
 facet_wrap(~ BaseSuscep) +
@@ -53,27 +59,28 @@ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
 #ggsave(paste0(str_split(file, "-")[[1]][[1]], "ScenarioVsPeakTiming.pdf"), dpi = 500, w = 9, h = 6)
 
-dataSetGrouped <- dataSetFull %>%
-  group_by(BaseSuscep, DiseaseState, name) %>%
-  summarise(maxInfected = max(value), sd = sd(value)) %>%
-  filter(maxInfected > 5)
-#
-ggplot(dataSetGrouped, aes(x=DiseaseState, y =maxInfected)) +
-  geom_boxplot() +
-  facet_wrap(~BaseSuscep) +
-  theme_minimal()
+# dataSetGrouped <- dataSetFull %>%
+#   group_by(BaseSuscep, DiseaseState, name) %>%
+#   summarise(maxInfected = max(value), sd = sd(value)) %>%
+#   filter(maxInfected > 5)
+# #
+# ggplot(dataSetGrouped, aes(x = DiseaseState, y = maxInfected)) +
+#   geom_boxplot() +
+#   facet_wrap(~BaseSuscep) +
+#   theme_minimal()
 
 dataSetGrouped$BaseSuscep <- as.numeric(dataSetGrouped$BaseSuscep)
 
 dataSetGrouped <- dataSetGrouped %>% filter(DiseaseState != "local2")
 
-ggplot(dataSetGrouped, aes(x=BaseSuscep, y = mean)) +
-geom_line(aes(color=DiseaseState), size = 1.4) + 
-ylab("Maximum infected") +
+ggplot(dataSetGrouped, aes(x = BaseSuscep, y = mean)) +
+geom_line(aes(color = DiseaseState), size = 1.4) +
+scale_color_brewer(palette="Dark2") +
+ylab("Peak Height") +
 xlab("Base Infection Probability") +
 theme_minimal() +
 #ggtitle(network_top) +
-scale_x_continuous(breaks = seq(from = 0.1, to = 0.3, by = 0.025)) +
+scale_x_continuous(breaks = seq(from = 0.1, to = 0.3, by = 0.1)) +
 theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
 theme(text = element_text(size = 37)) +
 theme(legend.position = "bottom", legend.title = element_blank()) +
@@ -83,14 +90,15 @@ theme(axis.ticks.x = element_line(),
 
 ggsave(paste0(str_split(file, "-")[[1]][[1]], "BaseSuscepVsMaxInfected.pdf"), dpi = 500, w = 9, h = 9)   
 
-ggplot(dataSetGrouped, aes(x=BaseSuscep, y = meanTimePoint)) +
-geom_line(aes(color=DiseaseState), size = 1.4) + 
-ylab("Timing of peak") +
+ggplot(dataSetGrouped, aes(x = BaseSuscep, y = meanTimePoint)) +
+geom_line(aes(color = DiseaseState), size = 1.4) +
+scale_color_brewer(palette="Dark2") +
+ylab("Peak Position") +
 xlab("Base Infection Probability") +
 theme_minimal() +
 #ggtitle(network_top) +
 theme(text = element_text(size = 37)) +
-scale_x_continuous(breaks = seq(from = 0.1, to = 0.3, by = 0.025)) +
+scale_x_continuous(breaks = seq(from = 0.1, to = 0.3, by = 0.1)) +
 theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
 theme(legend.position = "bottom", legend.title = element_blank()) +
 theme(axis.ticks.x = element_line(),
