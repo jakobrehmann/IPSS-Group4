@@ -1,6 +1,6 @@
 library(tidyverse)
 
-enter_path_here <- "/Users/sydney/Dropbox/JAKOB-SYDNEY/2023-12-08T160038"
+enter_path_here <- "/Users/sydney/Dropbox/JAKOB-SYDNEY/2023-12-13T084550"
 setwd(enter_path_here)
 
 # Reading in of files, the user needs to change line 9 according to the network they are interested in
@@ -17,7 +17,12 @@ for (i in 1:(length(files))){
     dataSetNew <- read.csv(file)
     dataSetNew$ID <- seq.int(nrow(dataSetNew))
     dataSetNew$BaseSuscep <- str_split(file, "-")[[1]][[2]]
-    dataSetNew$DiseaseState <- str_split(file, "-")[[1]][[3]]
+    dataSetNew$Strategy <- str_split(file, "-")[[1]][[3]]
+    if (length(str_split(file, "-")[[1]]) == 5) {
+    dataSetNew$lag <- str_split(file, "-")[[1]][[5]]
+    } else {
+      dataSetNew$lag <- 0
+    }
     dataSetNew <- pivot_longer(dataSetNew, cols = seed1:seed100)
     dataSetFull <- rbind(dataSetFull, dataSetNew)
   }
@@ -27,12 +32,12 @@ dataSetGrouped <- dataSetFull
 noTimeSteps <- max(dataSetGrouped$ID)
 dataSetGrouped <- dataSetGrouped %>% filter(ID == noTimeSteps) %>%
   filter(value > 5) %>%
-  group_by(BaseSuscep, DiseaseState, ID) %>%
+  group_by(BaseSuscep, Strategy, ID, lag) %>%
   summarise(mean = mean(value), sd = sd(value))
 dataSetGrouped <- dataSetGrouped %>% ungroup()
 
 
-ggplot(dataSetGrouped, aes(x = DiseaseState, y = mean)) +
+ggplot(dataSetGrouped, aes(x = Strategy, y = mean)) +
   geom_point() +
   ylab("Pandemic size (# of recovered, after 200 steps") +
   xlab("Considered szenario") +
@@ -45,10 +50,10 @@ ggplot(dataSetGrouped, aes(x = DiseaseState, y = mean)) +
 
 dataSetGrouped$BaseSuscep <- as.numeric(dataSetGrouped$BaseSuscep)
 
-dataSetGrouped <- dataSetGrouped %>% filter(DiseaseState != "local2")
+dataSetGrouped <- dataSetGrouped %>% filter(Strategy != "local2")
 
 ggplot(dataSetGrouped, aes(x = BaseSuscep, y = mean)) +
-  geom_line(aes(color = DiseaseState), size = 1.4) +
+  geom_line(aes(color = Strategy), size = 1.4) +
   scale_color_brewer(palette = "Dark2") +
   xlab("w") +
   ylab("Pandemic size") +
@@ -64,3 +69,8 @@ ggplot(dataSetGrouped, aes(x = BaseSuscep, y = mean)) +
         axis.ticks.length = unit(5, "pt"))
 
 ggsave(paste0(str_split(file, "-")[[1]][[1]], "BaseSuscepVsPandemicSize.pdf"), dpi = 500, w = 9, h = 9)   
+
+
+
+
+
