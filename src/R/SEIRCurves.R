@@ -1,4 +1,4 @@
-enter_path_here <- enter_path_here <- "/Users/sydney/Dropbox/JAKOB-SYDNEY/2023-12-04T140608-0.1"
+enter_path_here <- "/Users/sydney/Dropbox/JAKOB-SYDNEY/2023-12-13T084550"
 setwd(enter_path_here)
 
 files <- list.files(path=enter_path_here, pattern="*.csv", full.names=FALSE, recursive=FALSE)
@@ -16,13 +16,19 @@ dataSetFull <- data.frame()
 for(file in filesReduced){
   dataSetNew <- read.csv(file)
   dataSetNew$ID <- seq.int(nrow(dataSetNew))
-  dataSetNew$DiseaseState <- str_split(file, "-")[[1]][[length(str_split(file, "-")[[1]])]]
-  dataSetNew$DiseaseState <- substr(dataSetNew$DiseaseState,1,nchar(dataSetNew$DiseaseState)-4)
+  dataSetNew$DiseaseState <- str_split(file, "-")[[1]][[4]]
+  dataSetNew$DiseaseState <- str_remove(dataSetNew$DiseaseState, ".csv")
+  if (length(str_split(file, "-")[[1]]) == 5) { 
+  dataSetNew$lag <- str_split(file, "-")[[1]][[5]]
+  } else {
+    dataSetNew$lag <- 0
+  }
+  #dataSetNew$DiseaseState <- substr(dataSetNew$DiseaseState,1,nchar(dataSetNew$DiseaseState)-4)
   dataSetNew <- pivot_longer(dataSetNew, cols = seed1:seed100)
   dataSetFull <- rbind(dataSetFull, dataSetNew)
 }
 
-dataSetGrouped <- dataSetFull %>% group_by(DiseaseState, ID) %>% summarise(mean = mean(value), sd = sd(value))
+dataSetGrouped <- dataSetFull %>% group_by(DiseaseState, ID, lag) %>% summarise(mean = mean(value), sd = sd(value))
 dataSetGrouped <- dataSetGrouped %>% ungroup()
 dataSetGrouped <- dataSetGrouped %>% mutate(ymin = case_when(mean-sd > 0 ~ mean-sd, 
                                                              .default = 0))
