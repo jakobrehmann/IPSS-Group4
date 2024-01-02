@@ -1,12 +1,12 @@
 library(tidyverse)
 
-enter_path_here <- "/Users/sydney/Dropbox/JAKOB-SYDNEY/2023-12-13T084550"
+enter_path_here <- "/Users/sydney/Documents/data/2023-12-15T112657"
 setwd(enter_path_here)
 
 # Reading in of files, the user needs to change line 9 according to the network they are interested in
-files <- list.files(path=enter_path_here, pattern="*recovered.csv", full.names=FALSE, recursive=FALSE)
+files <- list.files(path=enter_path_here, pattern="*recovered", full.names=FALSE, recursive=FALSE)
 files <- files[files != paste0(enter_path_here, "_info.csv")]
-network_top <- "regular" #Possible values: "random", "regular", "smallworld", "preferential"
+network_top <- "smallworld" #Possible values: "random", "regular", "smallworld", "preferential"
 files <- files[grepl(network_top, files)]
 
 dataSetFull <- data.frame()
@@ -52,7 +52,7 @@ dataSetGrouped$BaseSuscep <- as.numeric(dataSetGrouped$BaseSuscep)
 
 dataSetGrouped <- dataSetGrouped %>% filter(Strategy != "local2")
 
-ggplot(dataSetGrouped, aes(x = BaseSuscep, y = mean)) +
+ggplot(dataSetGrouped %>% filter(lag == "0.csv"), aes(x = BaseSuscep, y = mean)) +
   geom_line(aes(color = Strategy), size = 1.4) +
   scale_color_brewer(palette = "Dark2") +
   xlab("w") +
@@ -68,9 +68,9 @@ ggplot(dataSetGrouped, aes(x = BaseSuscep, y = mean)) +
         axis.ticks.y = element_line(),
         axis.ticks.length = unit(5, "pt"))
 
+if (length(str_split(file, "-")[[1]]) == 5){
+ggsave(paste0(str_split(file, "-")[[1]][[1]], "-0lag", "BaseSuscepVsPandemicSize.pdf"), dpi = 500, w = 9, h = 9) 
+} else{ 
 ggsave(paste0(str_split(file, "-")[[1]][[1]], "BaseSuscepVsPandemicSize.pdf"), dpi = 500, w = 9, h = 9)   
-
-
-
-
+}
 

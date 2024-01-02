@@ -1,9 +1,9 @@
-enter_path_here <- "/Users/sydney/Dropbox/JAKOB-SYDNEY/2023-12-04T140608-0.2"
+enter_path_here <- "/Users/sydney/Documents/data/2023-12-15T112657"
 setwd(enter_path_here)
 
-files <- list.files(path=enter_path_here, pattern="*infectious.csv", full.names=FALSE, recursive=FALSE)
+files <- list.files(path=enter_path_here, pattern="*infectious-0.csv", full.names=FALSE, recursive=FALSE)
 files <- files[files != paste0(enter_path_here, "_info.csv")]
-files <- files[!grepl("smallworld", files)]
+files <- files[grepl("smallworld", files)]
 
 dataSetFull <- data.frame()
 
