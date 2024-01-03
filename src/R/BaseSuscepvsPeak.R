@@ -1,12 +1,12 @@
 library(tidyverse)
 
-enter_path_here <- "/Users/sydney/Documents/data/2023-12-15T112657"
+enter_path_here <- "/Users/sydney/Documents/data/2024-01-02T115022"
 setwd(enter_path_here)
 
 # Reading in of files, the user needs to change line 9 according to the network they are interested in
 files <- list.files(path=enter_path_here, pattern="*infectious", full.names=FALSE, recursive=FALSE)
 files <- files[files != paste0(enter_path_here, "_info.csv")]
-network_top <- "smallworld" #Possible values: "random", "regular", "smallworld", "preferential"
+network_top <- "smallworldreg" #Possible values: "random", "regular", "smallworld", "preferential"
 files <- files[grepl(network_top, files)]
 
 dataSetFull <- data.frame()
@@ -79,7 +79,7 @@ dataSetGrouped$BaseSuscep <- as.numeric(dataSetGrouped$BaseSuscep)
 dataSetGrouped <- dataSetGrouped %>% filter(Strategy != "local2")
 
 ggplot(dataSetGrouped %>% filter(lag == "0.csv"), aes(x = BaseSuscep, y = mean)) +
-geom_line(aes(color = Strategy), size = 1.4) +
+geom_line(aes(color = Strategy), size = 2.5) +
 scale_color_brewer(palette="Dark2") +
 ylab("Peak Height") +
 xlab("Base Infection Probability") +
@@ -87,11 +87,12 @@ theme_minimal() +
 #ggtitle(network_top) +
 scale_x_continuous(breaks = seq(from = 0.1, to = 0.3, by = 0.05)) +
 theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-theme(text = element_text(size = 37)) +
+theme(text = element_text(size = 45)) +
 theme(legend.position = "bottom", legend.title = element_blank()) +
 theme(axis.ticks.x = element_line(),
       axis.ticks.y = element_line(),
-      axis.ticks.length = unit(5, "pt"))
+      axis.ticks.length = unit(5, "pt")) +
+guides(color=guide_legend(nrow=2, byrow=TRUE))
  
 if (length(str_split(file, "-")[[1]]) == 5){
 ggsave(paste0(str_split(file, "-")[[1]][[1]], "-0lag", "BaseSuscepVsMaxInfected.pdf"), dpi = 500, w = 9, h = 9) 
@@ -101,19 +102,20 @@ ggsave(paste0(str_split(file, "-")[[1]][[1]], "BaseSuscepVsMaxInfected.pdf"), dp
 
 
 ggplot(dataSetGrouped %>% filter(lag == "0.csv"), aes(x = BaseSuscep, y = meanTimePoint)) +
-geom_line(aes(color = Strategy), size = 1.4) +
+geom_line(aes(color = Strategy), size = 2.5) +
 scale_color_brewer(palette = "Dark2") +
 ylab("Peak Position") +
 xlab("Base Infection Probability") +
 theme_minimal() +
 #ggtitle(network_top) +
-theme(text = element_text(size = 37)) +
+theme(text = element_text(size = 45)) +
 scale_x_continuous(breaks = seq(from = 0.1, to = 0.3, by = 0.05)) +
 theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
 theme(legend.position = "bottom", legend.title = element_blank()) +
 theme(axis.ticks.x = element_line(),
       axis.ticks.y = element_line(),
-      axis.ticks.length = unit(5, "pt"))
+      axis.ticks.length = unit(5, "pt")) +
+guides(color=guide_legend(nrow=2, byrow=TRUE))
 
 
 if (length(str_split(file, "-")[[1]]) == 5){
