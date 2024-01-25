@@ -132,7 +132,9 @@ function initializeNetwork(n_nodes, network_structure, mean_degree)
     elseif network_structure == "random"
         net = erdos_renyi(n_nodes, mean_degree / n_nodes)
     elseif network_structure == "smallworld"
-        net = newman_watts_strogatz(n_nodes, mean_degree, 0.01) #expected degree k(1 + β) (k = second param, β = third param)
+        net = newman_watts_strogatz(n_nodes, mean_degree, 0.01)
+    elseif network_structure == "smallworldreg"
+        net = newman_watts_strogatz(n_nodes, mean_degree, 0.0) #expected degree k(1 + β) (k = second param, β = third param)
     elseif network_structure == "preferential"
         net = barabasi_albert(n_nodes, 5) #TODO: how to make k depend on mean_degree
     else
