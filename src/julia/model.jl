@@ -57,6 +57,8 @@ function run_model(params)
                     
                     # empty dictionary, which will be filled with respective stat (e.g. susceptible count) for each model run (all iterations, rows of matrix) for each seed (columns of matrix)
                     results = Dict(
+                        # "shortestPath" => [],
+                        # "clusteringCoefficient" => [],
                         "susceptible" => [],
                         "exposed" => [],
                         "infectious" => [],
@@ -79,6 +81,28 @@ function run_model(params)
                             network_structure,
                             params[:mean_degree]
                         )
+
+                        # local_path_length_per_node = []
+                        # local_clustering_coeff_per_node = []
+                        # for i in 1:params[:n_nodes]
+                        #     push!(local_path_length_per_node, mean(Graphs.dijkstra_shortest_paths(net,i).dists))
+                        #     push!(local_clustering_coeff_per_node, Graphs.local_clustering_coefficient(net,i))
+
+                        # end
+
+                        # global_mean_path_length = [mean(local_path_length_per_node)]
+                        # global_mean_clustering_coefficient = [mean(local_clustering_coeff_per_node)]
+
+                        # println(string("seed: ", seed))
+                        # println(string("global mean path length: ", global_mean_path_length))
+                        # println(string("global mean clustering coefficient: ", global_mean_clustering_coefficient))
+                        # println(string("is completely connected : ", length(connected_components(net))))
+
+
+                        # push!(results["shortestPath"],global_mean_path_length)
+                        # push!(results["clusteringCoefficient"],global_mean_clustering_coefficient)
+
+
 
                         # Create model
                         model = initialize(
@@ -112,7 +136,11 @@ function run_model(params)
                         seed_counter = 1
                         for results_for_single_seed in result_matrix_all_seeds
                             vector_title = "seed$(seed_counter)"
+                            # if(typeof(results_for_single_seed)==Float64)
+                            #     df[!,vector_title] = [results_for_single_seed]
+                            # else
                             df[!, vector_title] = results_for_single_seed
+                            # end
                             seed_counter += 1
                         end
 
@@ -379,6 +407,13 @@ function calc_infection_chance(model, person, cnt_inf_neighbors, cnt_symptomatic
     elseif model.local_global_scenario == "local1_and_2"
         _, cnt_symptomatic_neighbors1_and_2, cnt_tot_neighbors1_and_2 = countNeighborsN(person, model; radius=2)
         red_factor = exp(-cnt_symptomatic_neighbors1_and_2 / cnt_tot_neighbors1_and_2 * model.mean_degree)
+    elseif model.local_global_scenario == "global_local1"
+
+        red_factor = exp(-model.prop_agents_infectious * model.mean_degree - cnt_symptomatic_neighbors)
+
+    elseif model.local_global_scenario == "global_local1_and_2"
+        _, cnt_symptomatic_neighbors1_and_2, cnt_tot_neighbors1_and_2 = countNeighborsN(person, model; radius=2)
+        red_factor = exp(-model.prop_agents_infectious * model.mean_degree -cnt_symptomatic_neighbors1_and_2 / cnt_tot_neighbors1_and_2 * model.mean_degree)
     else
         throw(DomainError)
     end
